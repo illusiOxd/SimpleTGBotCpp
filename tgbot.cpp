@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <tgbot/tgbot.h>
 #include <vector>
+#include <fstream>
+#include <iostream>
 
 using namespace TgBot;
 using namespace std;
@@ -8,7 +10,7 @@ using namespace std;
 class TgUser {
 private:
     string name;
-    int age, password;
+    int age, password, ID;
 
 public:
     TgUser()
@@ -77,8 +79,20 @@ int main()
     startCommand->command = "/start";
     startCommand->description = "Start the bot";
     bot.getEvents().onCommand("start", [&bot, &isRegistered](Message::Ptr message) {
-        bot.getApi().sendMessage(message->chat->id, "Hello! Welcome to the registration process. \n /info to watch your info after registration");
+        bot.getApi().sendMessage(message->chat->id, "Hello! Welcome to the registration process. \n /info to watch your info after registration \n /links to watch my github");
         bot.getApi().sendMessage(message->chat->id, "Do you want to register? (Yes/No)");
+        });
+
+    bot.getEvents().onCommand("links", [&bot, &PersonalUser](Message::Ptr message)
+        {
+            TgBot::InlineKeyboardMarkup::Ptr keyboard(new TgBot::InlineKeyboardMarkup);
+            TgBot::InlineKeyboardButton::Ptr button(new TgBot::InlineKeyboardButton);
+
+            button->text = "Github";
+            button->url = "https://github.com/illusiOxd";
+            keyboard->inlineKeyboard.push_back({ button });
+
+            bot.getApi().sendMessage(message->chat->id, "Click that buttons to follow the link.", false, 0, keyboard);
         });
 
     bot.getEvents().onAnyMessage([&bot, &PersonalUser, &isRegistered, &isWaitingForName, &isWaitingForAge, &isWaitingForPass](Message::Ptr message) {
@@ -113,7 +127,9 @@ int main()
                     PersonalUser.SetPassword(password);
                     isWaitingForPass = false; // Пользователь ввел пароль, больше не ждем
                     isRegistered = true; // Регистрация завершена
-                    bot.getApi().sendMessage(message->chat->id, "Registration completed.");
+                    bot.getApi().sendMessage(message->chat->id, "Registration completed.  \n /info to watch your info after registration \n /links to watch my github \n /writefile to sync your profile data");
+
+
                 }
                 catch (const invalid_argument& e) {
                     bot.getApi().sendMessage(message->chat->id, "Please type a valid password.");
@@ -143,21 +159,79 @@ int main()
         });
 
     bot.getEvents().onCallbackQuery([&bot, &PersonalUser](CallbackQuery::Ptr query) {
-    string data = query->data;
-    string username = query->from->username;
+        string data = query->data;
+        string username = query->from->username;
 
-    if (data == "show_password") {
-        cout << "This user clicked 'Yes' button in password show process: " << username << endl;
-        // Пользователь согласился показать пароль
-        int password = PersonalUser.GetPassword();
-        bot.getApi().sendMessage(query->message->chat->id, "Your password: " + to_string(password));
-    }
-    else if (data == "no_show_password") {
-        cout << "This user clicked 'No' button in password show process: " << username << endl;
-        // Пользователь отказался показывать пароль
-        bot.getApi().sendMessage(query->message->chat->id, "Okay, I won't show you your password.");
-    }
-});
+        if (data == "show_password") {
+            cout << "This user clicked 'Yes' button in password show process: " << username << endl;
+            // Пользователь согласился показать пароль
+            int password = PersonalUser.GetPassword();
+            bot.getApi().sendMessage(query->message->chat->id, "Your password: " + to_string(password));
+        }
+        else if (data == "no_show_password") {
+            cout << "This user clicked 'No' button in password show process: " << username << endl;
+            // Пользователь отказался показывать пароль
+            bot.getApi().sendMessage(query->message->chat->id, "Okay, I won't show you your password.");
+        }
+        });
+
+    bot.getEvents().onCommand("writefile", [&bot, &PersonalUser](Message::Ptr message)
+        {
+            ifstream inFile("user_data.txt");
+            bool usernameExists = false;
+
+            // Проверяем, есть ли уже юзернейм в файле
+            if (inFile.is_open()) {
+                string line;
+                while (getline(inFile, line)) {
+                    if (line.find("TG username: " + message->from->username) != string::npos) {
+                        // Если нашли юзернейм, ставим флаг и выходим из цикла
+                        usernameExists = true;
+                        break;
+                    }
+                }
+                inFile.close();
+            }
+
+            if (!usernameExists) {
+                // Если юзернейма еще нет в файле, производим запись
+                ofstream outFile("user_data.txt", ios::app);
+                if (outFile.is_open()) {
+                    // Определяем последний ID из файла
+                    int lastID = 0;
+                    ifstream inFile("user_data.txt");
+                    if (inFile.is_open()) {
+                        string line;
+                        while (getline(inFile, line)) {
+                            if (line.find("ID:") != string::npos) {
+                                int userID = stoi(line.substr(line.find(":") + 2));
+                                if (userID > lastID) {
+                                    lastID = userID;
+                                }
+                            }
+                        }
+                        inFile.close();
+                    }
+
+                    // Увеличиваем ID на 1, чтобы получить новый уникальный ID
+                    int newID = lastID + 1;
+
+                    // Записываем данные в файл
+                    outFile << "ID: " << setfill('0') << setw(4) << newID << endl; // Форматируем ID как 4-значное число с ведущими нулями
+                    outFile << "Name: " << PersonalUser.GetName() << endl;
+                    outFile << "TG username: " << message->from->username << endl;
+                    outFile << "Age: " << PersonalUser.GetAge() << endl;
+                    outFile << "Password: " << PersonalUser.GetPassword() << endl;
+                    outFile << "----------------------" << endl;
+                    bot.getApi().sendMessage(message->chat->id, "Your data is written.");
+
+                    outFile.close();
+                }
+            }
+            else {
+                bot.getApi().sendMessage(message->chat->id, "Your username is already in the file.");
+            }
+        });
 
     try
     {
