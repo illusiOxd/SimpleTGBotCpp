@@ -69,6 +69,18 @@ InlineKeyboardMarkup::Ptr createInlineYesNoKeyboard() {
     return keyboard;
 }
 
+//if (inFile.is_open()) {
+//    string line;
+//    while (getline(inFile, line)) {
+//        if (line.find("TG username: " + message->from->username) != string::npos) {
+//            // Если нашли юзернейм, ставим флаг и выходим из цикла
+//            usernameExists = true;
+//            break;
+//        }
+//    }
+//    inFile.close();
+//}
+
 int main()
 {
     Bot bot("6927127350:AAGWg0O3VpP3e0o0HNySeW81SgRbUYwmoPY");
@@ -78,9 +90,54 @@ int main()
     TgBot::BotCommand::Ptr startCommand(new TgBot::BotCommand);
     startCommand->command = "/start";
     startCommand->description = "Start the bot";
-    bot.getEvents().onCommand("start", [&bot, &isRegistered](Message::Ptr message) {
-        bot.getApi().sendMessage(message->chat->id, "Hello! Welcome to the registration process. \n /info to watch your info after registration \n /links to watch my github");
-        bot.getApi().sendMessage(message->chat->id, "Do you want to register? (Yes/No)");
+    bot.getEvents().onCommand("start", [&bot, &isRegistered, &PersonalUser](Message::Ptr message) {
+        // Отправляем приветственное сообщение
+        bot.getApi().sendMessage(message->chat->id, "Hello! I am a test bot. \n /info to watch your info after registration \n /links to watch my github");
+
+        // Открываем файл для чтения
+        ifstream inFile("user_data.txt");
+
+        bool userFound = false;
+        if (inFile.is_open()) {
+            string line; // Флаг, указывающий, найден ли пользователь
+            vector<string> fileLines; 
+
+            // Просматриваем файл построчно
+            while (getline(inFile, line)) {
+                fileLines.push_back(line);
+            }
+
+            // Второй проход: обрабатываем данные
+            for (const string& fileLine : fileLines) {
+                if (fileLine.find("TG username: " + message->from->username) != string::npos) {
+                    isRegistered = true; // Устанавливаем флаг регистрации
+
+                    // Перебираем строки, начиная с текущей, чтобы найти данные о пользователе
+                    for (size_t i = 0; i < fileLines.size(); ++i) {
+                        if (fileLines[i].find("Name: ") != string::npos) {
+                            string usernametemp = fileLines[i].substr(6); // 6 - длина "Name: "
+                            PersonalUser.SetName(usernametemp);
+                        }
+                        else if (fileLines[i].find("Age: ") != string::npos) {
+                            PersonalUser.SetAge(stoi(fileLines[i].substr(5))); // 5 - длина "Age: "
+                        }
+                        else if (fileLines[i].find("Password: ") != string::npos) {
+                            PersonalUser.SetPassword(stoi(fileLines[i].substr(10))); // 10 - длина "Password: "
+                        }
+                    }
+
+                    userFound = true; // Устанавливаем флаг найденного пользователя
+                    break;
+                }
+            }
+            // Закрываем файл
+            inFile.close();
+        }
+
+        // Если пользователь не найден, отправляем сообщение о регистрации
+        if (!userFound) {
+            bot.getApi().sendMessage(message->chat->id, "Do you want to register? (Yes/No)");
+        }
         });
 
     bot.getEvents().onCommand("links", [&bot, &PersonalUser](Message::Ptr message)
