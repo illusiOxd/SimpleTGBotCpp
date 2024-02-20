@@ -10,8 +10,8 @@ using namespace std;
 
 class TgUser {
 private:
-    string name;
-    int age, password, ID;
+    string name, password;
+    int age, ID;
     bool isRegistered;
 
 public:
@@ -36,10 +36,10 @@ public:
         this->age = newage;
     }
 
-    int GetPassword() const {
+    string GetPassword() const {
         return password;
     }
-    void SetPassword(int newPassword) {
+    void SetPassword(string newPassword) {
         this->password = newPassword;
     }
     bool IsRegistered() const {
@@ -126,7 +126,7 @@ int main() {
                     PersonalUser.SetAge(stoi(line.substr(5)));
                 }
                 else if (line.find("Password: ") != string::npos) {
-                    PersonalUser.SetPassword(stoi(line.substr(10)));
+                    PersonalUser.SetPassword(line.substr(10));
                 }
             }
 
@@ -135,7 +135,7 @@ int main() {
             inFile.close();
 
             // Проверяем наличие данных перед отправкой сообщения
-            if (userMap[userId].GetName() != " " && userMap[userId].GetAge() != -1 && userMap[userId].GetPassword() != -1) {
+            if (userMap[userId].GetName() != " " && userMap[userId].GetAge() != -1 && userMap[userId].GetPassword() !=  " - 1") {
                 bot.getApi().sendMessage(message->chat->id, "Your data has been loaded from the file.", false, 0, createBottomKeyboard());
             }
             else {
@@ -170,7 +170,7 @@ int main() {
                     int age = stoi(message->text);
                     userMap[userId].SetAge(age);
                     isWaitingForAge = false;
-                    bot.getApi().sendMessage(message->chat->id, "Type your password (only numbers): ", false, 0, createBottomKeyboard());
+                    bot.getApi().sendMessage(message->chat->id, "Type your password: ", false, 0, createBottomKeyboard());
                     isWaitingForPass = true;
                 }
                 catch (const invalid_argument& e) {
@@ -179,7 +179,7 @@ int main() {
             }
             else if (isWaitingForPass) {
                 try {
-                    int password = stoi(message->text);
+                    string password = message->text;
                     userMap[userId].SetPassword(password);
                     isWaitingForPass = false;
                     isRegistered = true;
@@ -251,7 +251,7 @@ int main() {
         InlineKeyboardMarkup::Ptr keyboard(new InlineKeyboardMarkup);
         InlineKeyboardButton::Ptr button(new InlineKeyboardButton);
 
-        button->text = "Github";
+        button->text = "Github"; 
         button->url = "https://github.com/illusiOxd";
         keyboard->inlineKeyboard.push_back({ button });
 
